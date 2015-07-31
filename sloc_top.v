@@ -22,7 +22,18 @@ assign LEDG[0] = reset_n;
 assign SPI_IN		= GPIO_1[2];
 assign GPIO_1[4] 	= SPI_OUT;
 assign GPIO_1[3] 	= (TFS&&~RFS);
-assign GPIO_1[5] 	= PEorNE&&SCLK; //2.270MHz
+assign GPIO_1[5] 	= PEorNE&&SCLK_on; //2.270MHz
+/*
+//CE code
+assign GPIO_1[5] 	= ~PE_SCLK && NE_SCLK && SCLK_on && alternate; 
+reg alternate;
+initial alternate = 1;
+always @(negedge (~PE_SCLK && NE_SCLK)) begin
+	alternate <= alternate +1;
+end
+*/
+
+
 assign GPIO_1[7] 	= RFS;
 assign GPIO_1[9] 	= TFS;
 
@@ -66,7 +77,7 @@ assign LEDR[0]=GPIO_1[19];
 /**********test clock speed stuff***********/
 /*******************************/
 assign GPIO_1[11] = CLOCK_50; //50MHz
-assign GPIO_1[13] = tempclock; //40.064kHz
+//assign GPIO_1[13] = tempclock; //40.064kHz
 
 /*******************************/
 /*******************************/
@@ -74,32 +85,35 @@ assign GPIO_1[13] = tempclock; //40.064kHz
 
 /*************modules******************/
 //clock module
-wire PEorNE;
+wire PEorNEm, PE_SCLK, NE_SCLK;
 clk_ADC M1(.clk_clk(CLOCK_50), 
 			  .SCLK(PEorNE), 
 			  .reset_n(reset_n),
-			  /*.tempclock(tempclock)*/);
+			  .PE_SCLK(PE_SCLK),
+			  .NE_SCLK(NE_SCLK));
 
 
 /***************************************/
 /*******************************/
 //adc control signals + data transfer
-wire RFS, TFS, SCLK, SPI_OUT;
+wire RFS, TFS, SCLK_on, SPI_OUT;
 wire [1:0] select_ch;
 wire [5:0] count;
 ADC_DataControl A1(	.clk_clk(PEorNE),
 							.reset_n(reset_n),
+							.PE_SCLK(PE_SCLK),
+							.NE_SCLK(NE_SCLK),
 							.RFS(RFS),
 							.TFS(TFS),
-							.SCLK(SCLK),
+							.enable(SCLK_on),
 							.select_ch(select_ch),
 							.SPI_IN(SPI_IN), 
 							.SPI_OUT(SPI_OUT), 
 							.SPI_CH0(SPI_CH0), 
 							.SPI_CH1(SPI_CH1), 
 							.SPI_CH2(SPI_CH2), 
-							.SPI_CH3(SPI_CH3)
-							, .tempclock(tempclock));
+							.SPI_CH3(SPI_CH3),
+							.tempclock(tempclock));
 
 /***************************************/
 /***************************************/
@@ -108,6 +122,7 @@ ADC_DataControl A1(	.clk_clk(PEorNE),
 wire [1:0] fir_error;
 wire fir_valid, fir_ready;
 
+assign fir_out18 = fir_out[18:0];
 assign LEDG[7] = fir_ready;
 assign LEDG[6] = fir_valid;
 assign LEDG[3:2] = fir_error;
@@ -122,19 +137,19 @@ always @(posedge CLOCK_50) begin
 	end
 end
 //fir filter
-fir_mlab F1(	.clk(tempclock),
-					.reset_n(reset_n),
-					.enable(1'b1),
-					.ast_sink_data(SPI_CH0),
-					.ast_sink_valid(1'b1),
-					.ast_source_ready(1'b1),
-					.ast_sink_error(2'b00),
-					.ast_source_data(fir_out), //output
-					.ast_sink_ready(fir_ready),  //output
-					.ast_source_valid(fir_valid), //output
-					.ast_source_error(fir_error)); //output	
+fir_mlab F1(.clk(tempclock),
+				.reset_n(reset_n),
+				.enable(1'b1),
+				.ast_sink_data(SPI_CH0),
+				.ast_sink_valid(1'b1),
+				.ast_source_ready(1'b1),
+				.ast_sink_error(2'b00),
+				.ast_source_data(fir_out), //output
+				.ast_sink_ready(fir_ready),  //output
+				.ast_source_valid(fir_valid), //output
+				.ast_source_error(fir_error)); //output	
 
-		
+	
 /***************************************/
 /***************************************/
 /*****data registers for each ch go here*******/
