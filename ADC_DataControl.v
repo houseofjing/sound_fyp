@@ -46,7 +46,7 @@ begin
 		count <= 6'h00;
 		RFS <= 1'b0;
 		TFS <= 1'b1;
-		SCLK <= 1'b0;
+		SCLK <= 2'b00;
 		select_ch <= 1'b0;
 	end	
 	else
