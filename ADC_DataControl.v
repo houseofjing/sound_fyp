@@ -1,16 +1,18 @@
 module ADC_DataControl(	input clk_clk, //clock
 								input reset_n, //reset signal
+								input PE_SCLK,
+								input NE_SCLK,
 								output reg RFS, //ADC control lines
 								output reg TFS,
-								output reg SCLK,
+								output reg enable,
 								output reg [1:0] select_ch, //channel select
 								input SPI_IN, //input from ADC
 								output reg SPI_OUT, //output to ADC
 								output reg signed [10:0] SPI_CH0, //ch data
 								output reg signed [10:0] SPI_CH1, 
 								output reg signed [10:0] SPI_CH2, 
-								output reg signed [10:0] SPI_CH3
-								,output tempclock);
+								output reg signed [10:0] SPI_CH3, 
+								output reg tempclock);
 								
 
 /************************************/
@@ -37,7 +39,8 @@ begin
 	endcase
 end
 
-/*************Control lines to ADC**********/
+
+///////////////////Control lines to ADC
 reg [5:0] count; //
 always@(posedge clk_clk)
 begin
@@ -47,38 +50,35 @@ begin
 		count <= 6'h00;
 		RFS <= 1'b0;
 		TFS <= 1'b1;
-		SCLK <= 1'b0;
-		select_ch <= 2'b00;
+		enable <= 1'b0;
+		select_ch <= 1'b0;
 		tempclock <= 0;
 	end	
 	else
 	begin
 		if (count == 0) 
 		begin
-			tempclock <= 0;
 			RFS <= 1'b1; 
 			TFS <= 1'b0;
-			SCLK <=1'b1;
+			enable <=1'b1;
+			tempclock <= 0;
 		end
 		else if (count == 11) RFS<= 1'b0;
 		if (count == 12)
 		begin
-			SCLK <=0;
+			enable <=0;
 			count <=6'h00;
 			TFS <= 1'b1;
 			RFS <= 1'b0;
-			if (select_ch==2'b11) tempclock<=1;
 			select_ch <= select_ch+1'b1;
+			if (select_ch ==2'b11) tempclock <= 1;
 		end
 		else count<= count+1'b1;
 	end
 end
-/************************************************/
-/************************************************/
-/***********************************************/
 
 
-/***********SPI Data******************/
+///////////////////////////SPI Data
 reg [15:0]SPI_IN_signal;
 
 //data input from ADC
@@ -94,7 +94,7 @@ begin
 	end
 	else 
 	begin
-		if (RFS&&SCLK)
+		if (RFS&&enable)
 		begin
 			case(read_counter)
 				0: SPI_IN_signal[15] <= SPI_IN;
@@ -129,11 +129,8 @@ begin
 	end	
 end
 
-/***********************************************/
-/***********************************************/
-/***********************************************/
 
-//data output to ADC
+/////////////////////////////data output to ADC
 always@(negedge clk_clk)
 begin
 if (~reset_n)
@@ -142,7 +139,7 @@ if (~reset_n)
 	end
 	else //'negative edge' of CE_SCLK
 	begin
-		if (~TFS&&SCLK)
+		if (~TFS&&enable)
 		begin
 			case (write_counter)
 				0: SPI_OUT <= output_signal[15];
