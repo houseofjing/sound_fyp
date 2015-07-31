@@ -9,7 +9,8 @@ module ADC_DataControl(	input clk_clk, //clock
 								output reg signed [10:0] SPI_CH0, //ch data
 								output reg signed [10:0] SPI_CH1, 
 								output reg signed [10:0] SPI_CH2, 
-								output reg signed [10:0] SPI_CH3);
+								output reg signed [10:0] SPI_CH3
+								,output tempclock);
 								
 
 /************************************/
@@ -47,12 +48,14 @@ begin
 		RFS <= 1'b0;
 		TFS <= 1'b1;
 		SCLK <= 1'b0;
-		select_ch <= 1'b0;
+		select_ch <= 2'b00;
+		tempclock <= 0;
 	end	
 	else
 	begin
 		if (count == 0) 
 		begin
+			tempclock <= 0;
 			RFS <= 1'b1; 
 			TFS <= 1'b0;
 			SCLK <=1'b1;
@@ -64,6 +67,7 @@ begin
 			count <=6'h00;
 			TFS <= 1'b1;
 			RFS <= 1'b0;
+			if (select_ch==2'b11) tempclock<=1;
 			select_ch <= select_ch+1'b1;
 		end
 		else count<= count+1'b1;
