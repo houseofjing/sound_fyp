@@ -78,7 +78,7 @@ wire PEorNE;
 clk_ADC M1(.clk_clk(CLOCK_50), 
 			  .SCLK(PEorNE), 
 			  .reset_n(reset_n),
-			  .tempclock(tempclock));
+			  /*.tempclock(tempclock)*/);
 
 
 /***************************************/
@@ -98,7 +98,8 @@ ADC_DataControl A1(	.clk_clk(PEorNE),
 							.SPI_CH0(SPI_CH0), 
 							.SPI_CH1(SPI_CH1), 
 							.SPI_CH2(SPI_CH2), 
-							.SPI_CH3(SPI_CH3));
+							.SPI_CH3(SPI_CH3)
+							, .tempclock(tempclock));
 
 /***************************************/
 /***************************************/
@@ -107,7 +108,6 @@ ADC_DataControl A1(	.clk_clk(PEorNE),
 wire [1:0] fir_error;
 wire fir_valid, fir_ready;
 
-assign fir_out18 = fir_out[18:0];
 assign LEDG[7] = fir_ready;
 assign LEDG[6] = fir_valid;
 assign LEDG[3:2] = fir_error;
@@ -122,19 +122,19 @@ always @(posedge CLOCK_50) begin
 	end
 end
 //fir filter
-fir_mlab F1(	.clk(CLOCK_50),
-			.reset_n(reset_n),
-			.enable(CE_fir),
-			.ast_sink_data(SPI_CH0),
-			.ast_sink_valid(1'b1),
-			.ast_source_ready(1'b1),
-			.ast_sink_error(2'b00),
-			.ast_source_data(fir_out), //output
-			.ast_sink_ready(fir_ready),  //output
-			.ast_source_valid(fir_valid), //output
-			.ast_source_error(fir_error)); //output	
+fir_mlab F1(	.clk(tempclock),
+					.reset_n(reset_n),
+					.enable(1'b1),
+					.ast_sink_data(SPI_CH0),
+					.ast_sink_valid(1'b1),
+					.ast_source_ready(1'b1),
+					.ast_sink_error(2'b00),
+					.ast_source_data(fir_out), //output
+					.ast_sink_ready(fir_ready),  //output
+					.ast_source_valid(fir_valid), //output
+					.ast_source_error(fir_error)); //output	
 
-	
+		
 /***************************************/
 /***************************************/
 /*****data registers for each ch go here*******/
@@ -169,5 +169,4 @@ fir_memory C0 (.clk_clk(tempclock),
 ///////////
 endmodule
 	
-
 
