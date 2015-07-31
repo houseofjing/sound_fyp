@@ -9,7 +9,8 @@ module sloc_top(	input CLOCK_50,
 						output signed [10:0] SPI_CH3,  
 						output tempclock,
 						output [22:0] fir_out,
-						output [18:0] fir_out18);
+						output [18:0] fir_out18,
+						output reg alternate);
 						
 						
 
@@ -22,7 +23,7 @@ assign LEDG[0] = reset_n;
 assign SPI_IN		= GPIO_1[2];
 assign GPIO_1[4] 	= SPI_OUT;
 assign GPIO_1[3] 	= (TFS&&~RFS);
-assign GPIO_1[5] 	= PEorNE&&SCLK; //2.270MHz
+assign GPIO_1[5] 	= ~PE_SCLK && NE_SCLK && SCLK_on && alternate; //2.270MHz
 assign GPIO_1[7] 	= RFS;
 assign GPIO_1[9] 	= TFS;
 
@@ -30,6 +31,11 @@ assign GPIO_1[9] 	= TFS;
 /*******ADC Data Input/Output********/
 /***********************/
 
+//create a clock sequence of 1s and 0s for ADC to 
+always@(PE_SCLK or NE_SCLK or reset_n) begin
+	if (~reset_n) alternate <= 1;
+	else if (~PE_SCLK&&NE_SCLK) alternate <= alternate+1;
+end
 
 /***********************/
 /***********************/
@@ -74,32 +80,35 @@ assign GPIO_1[13] = tempclock; //40.064kHz
 
 /*************modules******************/
 //clock module
-wire PEorNE;
+wire PE_SCLK,NE_SCLK;
 clk_ADC M1(.clk_clk(CLOCK_50), 
-			  .SCLK(PEorNE), 
+			  .PE_SCLK(PE_SCLK), 
+			  .NE_SCLK(NE_SCLK),
 			  .reset_n(reset_n),
-			  /*.tempclock(tempclock)*/);
+			  );
 
 
 /***************************************/
 /*******************************/
 //adc control signals + data transfer
-wire RFS, TFS, SCLK, SPI_OUT;
+wire RFS, TFS, SCLK_on, SPI_OUT;
 wire [1:0] select_ch;
 wire [5:0] count;
-ADC_DataControl A1(	.clk_clk(PEorNE),
+ADC_DataControl A1(	.clk_clk(CLOCK_50),
 							.reset_n(reset_n),
+							.PE_SCLK(PE_SCLK),
+							.NE_SCLK(NE_SCLK),
 							.RFS(RFS),
 							.TFS(TFS),
-							.SCLK(SCLK),
+							.enable(SCLK_on),
 							.select_ch(select_ch),
 							.SPI_IN(SPI_IN), 
 							.SPI_OUT(SPI_OUT), 
 							.SPI_CH0(SPI_CH0), 
 							.SPI_CH1(SPI_CH1), 
 							.SPI_CH2(SPI_CH2), 
-							.SPI_CH3(SPI_CH3)
-							, .tempclock(tempclock));
+							.SPI_CH3(SPI_CH3),
+							.tempclock(tempclock));
 
 /***************************************/
 /***************************************/
@@ -122,9 +131,9 @@ always @(posedge CLOCK_50) begin
 	end
 end
 //fir filter
-fir_mlab F1(	.clk(tempclock),
+fir_mlab F1(	.clk(CLOCK_50),
 					.reset_n(reset_n),
-					.enable(1'b1),
+					.enable(tempclock),
 					.ast_sink_data(SPI_CH0),
 					.ast_sink_valid(1'b1),
 					.ast_source_ready(1'b1),
